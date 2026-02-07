@@ -1,4 +1,4 @@
-# Week 1 Solution - Bug Fixes Documentation
+# Week 1 Solution (Bug fixes, new end point, error handling and test cases)
 
 This document provides a detailed explanation of all the bugs that were identified and fixed in the PromptLab API.
 
