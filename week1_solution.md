@@ -270,19 +270,148 @@ All fixes have been verified with comprehensive test coverage:
 
 ---
 
+## PATCH Endpoint Implementation: Partial Updates
+
+### Location
+`backend/app/api.py` - Lines 114-143
+`backend/app/models.py` - Lines 30-35
+
+### Requirement
+Implement a `PATCH /prompts/{prompt_id}` endpoint that allows partial updates, where only the fields provided in the request are updated, unlike PUT which requires all fields.
+
+### Implementation
+
+#### 1. Updated `PromptUpdate` Model
+Changed from inheriting `PromptBase` (which has required fields) to `BaseModel` with all optional fields:
+
+```python
+class PromptUpdate(BaseModel):
+    """Model for partial prompt updates - all fields are optional"""
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    content: Optional[str] = Field(None, min_length=1)
+    description: Optional[str] = Field(None, max_length=500)
+    collection_id: Optional[str] = None
+```
+
+**Why This Works:**
+- All fields are optional (`Optional[str]` with default `None`)
+- Fields maintain validation constraints when provided
+- Allows partial updates where only some fields are sent
+
+#### 2. PATCH Endpoint Implementation
+
+```python
+@app.patch("/prompts/{prompt_id}", response_model=Prompt)
+def patch_prompt(prompt_id: str, prompt_data: PromptUpdate):
+    """Partial update endpoint - only updates provided fields
+    
+    Allows updating only the fields that are provided in the request.
+    Fields not included in the request remain unchanged.
+    """
+    existing = storage.get_prompt(prompt_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    
+    # Get only the fields that were explicitly provided (exclude_unset=True)
+    update_data = prompt_data.model_dump(exclude_unset=True)
+    
+    # If no fields were provided, return existing prompt unchanged
+    if not update_data:
+        return existing
+    
+    # Validate collection if provided (and not None)
+    if "collection_id" in update_data and update_data["collection_id"] is not None:
+        collection = storage.get_collection(update_data["collection_id"])
+        if not collection:
+            raise HTTPException(status_code=400, detail="Collection not found")
+    
+    # Create updated prompt with only provided fields
+    updated_prompt = existing.model_copy(update=update_data)
+    # Always update the timestamp when any field is modified
+    updated_prompt.updated_at = get_current_time()
+    
+    return storage.update_prompt(prompt_id, updated_prompt)
+```
+
+### Key Features
+
+1. **Partial Updates Only**: Uses `exclude_unset=True` to only include fields explicitly provided in the request body
+2. **Field Preservation**: Fields not included in the request remain unchanged from the existing prompt
+3. **Validation**: Validates `collection_id` if provided to ensure it exists
+4. **Timestamp Update**: Always updates `updated_at` when any field is modified
+5. **Empty Request Handling**: Returns existing prompt unchanged if no fields are provided
+6. **Error Handling**: Returns 404 if prompt doesn't exist, 400 if collection is invalid
+
+### Usage Examples
+
+**Example 1: Update only title**
+```bash
+PATCH /prompts/{id}
+Content-Type: application/json
+
+{
+  "title": "New Title"
+}
+```
+- Only `title` is updated
+- `content`, `description`, `collection_id` remain unchanged
+
+**Example 2: Update multiple fields**
+```bash
+PATCH /prompts/{id}
+Content-Type: application/json
+
+{
+  "title": "New Title",
+  "description": "New description"
+}
+```
+- Only `title` and `description` are updated
+- `content` and `collection_id` remain unchanged
+
+**Example 3: Empty body**
+```bash
+PATCH /prompts/{id}
+Content-Type: application/json
+
+{}
+```
+- No fields are updated
+- Returns the existing prompt unchanged
+
+### Difference from PUT Endpoint
+
+| Feature | PUT | PATCH |
+|---------|-----|-------|
+| Fields Required | All fields must be provided | Only fields to update |
+| Partial Updates | No | Yes |
+| Field Preservation | Replaces all fields | Only updates provided fields |
+| Use Case | Full replacement | Partial modification |
+
+### Impact
+- ✅ Enables flexible partial updates
+- ✅ Follows REST API best practices
+- ✅ Maintains data integrity
+- ✅ Provides better API usability
+- ✅ All existing tests continue to pass
+
+---
+
 ## Summary
 
-All four bugs have been successfully identified and fixed:
+All four bugs have been successfully identified and fixed, and the missing PATCH endpoint has been implemented:
 
 1. **Bug #1**: Fixed error handling to return proper 404 status codes
 2. **Bug #2**: Fixed timestamp tracking to update `updated_at` on modifications
 3. **Bug #3**: Fixed sorting function to respect the `descending` parameter
 4. **Bug #4**: Fixed collection deletion to prevent orphaned prompts
+5. **PATCH Endpoint**: Implemented partial update functionality
 
 The codebase now follows best practices for:
 - Error handling and HTTP status codes
 - Data integrity and referential consistency
 - Function parameter usage and documentation
 - Timestamp tracking and audit trails
+- RESTful API design (PUT for full updates, PATCH for partial updates)
 
 All tests pass, and the API is production-ready.

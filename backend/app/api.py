@@ -111,14 +111,37 @@ def update_prompt(prompt_id: str, prompt_data: PromptUpdate):
     return storage.update_prompt(prompt_id, updated_prompt)
 
 
-# solved: implemented patch_prompt
 @app.patch("/prompts/{prompt_id}", response_model=Prompt)
 def patch_prompt(prompt_id: str, prompt_data: PromptUpdate):
+    """Partial update endpoint - only updates provided fields
+    
+    Allows updating only the fields that are provided in the request.
+    Fields not included in the request remain unchanged.
+    """
     existing = storage.get_prompt(prompt_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Prompt not found")
     
-    updated_prompt = existing.model_copy(update=prompt_data.model_dump())
+    # Get only the fields that were explicitly provided (exclude_unset=True)
+    # This ensures we only update fields that were in the request body
+    update_data = prompt_data.model_dump(exclude_unset=True)
+    
+    # If no fields were provided, return existing prompt unchanged
+    if not update_data:
+        return existing
+    
+    # Validate collection if provided (and not None)
+    if "collection_id" in update_data and update_data["collection_id"] is not None:
+        collection = storage.get_collection(update_data["collection_id"])
+        if not collection:
+            raise HTTPException(status_code=400, detail="Collection not found")
+    
+    # Create updated prompt with only provided fields
+    # Fields not in update_data will remain unchanged from existing prompt
+    updated_prompt = existing.model_copy(update=update_data)
+    # Always update the timestamp when any field is modified
+    updated_prompt.updated_at = get_current_time()
+    
     return storage.update_prompt(prompt_id, updated_prompt)
 
 
