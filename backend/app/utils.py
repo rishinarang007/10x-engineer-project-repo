@@ -7,11 +7,12 @@ from app.models import Prompt
 def sort_prompts_by_date(prompts: List[Prompt], descending: bool = True) -> List[Prompt]:
     """Sort prompts by creation date.
     
-    Note: There might be a bug here. Check the sort order!
+    Args:
+        prompts: List of prompts to sort
+        descending: If True, sort newest first (descending order). If False, sort oldest first (ascending order).
     """
-    # BUG #3: This sorts ascending (oldest first) when it should sort descending (newest first)
-    # The 'descending' parameter is ignored!
-    return sorted(prompts, key=lambda p: p.created_at)
+    # solved: added reverse=descending to sort in descending order
+    return sorted(prompts, key=lambda p: p.created_at, reverse=descending)
 
 
 def filter_prompts_by_collection(prompts: List[Prompt], collection_id: str) -> List[Prompt]:
