@@ -1,0 +1,60 @@
+site_name: PromptLab Docs
+site_description: Documentation for the PromptLab API
+site_url: https://rishinarang007.github.io/10x-engineer-project-repo/
+repo_url: https://github.com/rishinarang007/10x-engineer-project-repo
+repo_name: rishinarang007/10x-engineer-project-repo
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - API Reference: api-reference.md
+  - Specifications:
+      - Prompt Versions: specs/prompt-versions.md
+      - Tagging System: specs/tagging-system.md
+  - Contributing:
+      - Coding Standards: contributing/coding-standards.md
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - toc:
+      permalink: true
