@@ -5,9 +5,11 @@ Models leverage Pydantic v2 for runtime data validation, serialization, and
 automatic OpenAPI schema generation.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from uuid import uuid4
 
 
@@ -85,7 +87,10 @@ class PromptCreate(PromptBase):
     ``updated_at`` automatically.
     """
 
-    pass
+    tag_ids: Optional[List[str]] = Field(
+        None,
+        description="Optional list of tag UUIDs to attach on creation.",
+    )
 
 
 class PromptUpdate(BaseModel):
@@ -125,6 +130,10 @@ class PromptUpdate(BaseModel):
         None,
         description="New collection UUID, or null to uncategorize the prompt.",
     )
+    tag_ids: Optional[List[str]] = Field(
+        None,
+        description="Replacement tag UUIDs. Omit to leave tags unchanged.",
+    )
 
 
 class Prompt(PromptBase):
@@ -151,16 +160,105 @@ class Prompt(PromptBase):
         default_factory=get_current_time,
         description="UTC timestamp of the last modification.",
     )
+    tags: List["Tag"] = Field(
+        default_factory=list,
+        description="Tags attached to this prompt, sorted alphabetically.",
+    )
 
-    class Config:
-        """Pydantic model configuration.
+    model_config = ConfigDict(from_attributes=True)
 
-        Attributes:
-            from_attributes: Allow population of the model from ORM-style
-                attribute access (e.g. SQLAlchemy rows).
-        """
 
-        from_attributes = True
+# ============== Tag Models ==============
+
+
+class Tag(BaseModel):
+    """A user-defined label that can be attached to prompts.
+
+    Attributes:
+        id: Unique identifier for the tag.
+        name: Normalised tag name (lowercase, 1-50 chars, alphanumeric
+            plus hyphens and underscores).
+        created_at: UTC timestamp of when the tag was created.
+    """
+
+    id: str = Field(
+        default_factory=generate_id,
+        description="Unique UUID4 identifier for the tag.",
+    )
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Normalised tag name (lowercase, alphanumeric, hyphens, underscores).",
+    )
+    created_at: datetime = Field(
+        default_factory=get_current_time,
+        description="UTC timestamp of when the tag was created.",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TagCreate(BaseModel):
+    """Request body for creating a new tag.
+
+    Attributes:
+        name: The desired tag name. Will be normalised to lowercase and
+            trimmed before storage.
+    """
+
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Tag name (will be normalised to lowercase).",
+    )
+
+
+class TagWithCount(Tag):
+    """Tag resource enriched with usage count for list responses.
+
+    Attributes:
+        prompt_count: Number of prompts currently carrying this tag.
+    """
+
+    prompt_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of prompts that currently carry this tag.",
+    )
+
+
+class TagList(BaseModel):
+    """Paginated list of tags.
+
+    Attributes:
+        tags: List of tag resources with usage counts.
+        total: Total number of tags.
+    """
+
+    tags: List[TagWithCount] = Field(
+        ...,
+        description="List of tag resources.",
+    )
+    total: int = Field(
+        ...,
+        description="Total number of tags.",
+    )
+
+
+class TagAssignment(BaseModel):
+    """Request body for attaching or detaching tags.
+
+    Attributes:
+        tag_ids: List of tag UUIDs to attach or detach.
+    """
+
+    tag_ids: List[str] = Field(
+        ...,
+        min_length=1,
+        description="One or more tag UUIDs.",
+    )
 
 
 # ============== Collection Models ==============
@@ -220,15 +318,7 @@ class Collection(CollectionBase):
         description="UTC timestamp of when the collection was created.",
     )
 
-    class Config:
-        """Pydantic model configuration.
-
-        Attributes:
-            from_attributes: Allow population of the model from ORM-style
-                attribute access (e.g. SQLAlchemy rows).
-        """
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============== Response Models ==============

@@ -9,9 +9,9 @@ Attributes:
     storage: The global ``Storage`` singleton used by the API layer.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
-from app.models import Prompt, Collection
+from app.models import Prompt, Collection, Tag
 
 
 class Storage:
@@ -36,6 +36,9 @@ class Storage:
         """
         self._prompts: Dict[str, Prompt] = {}
         self._collections: Dict[str, Collection] = {}
+        self._tags: Dict[str, Tag] = {}
+        self._tag_by_name: Dict[str, Tag] = {}
+        self._prompt_tags: Dict[str, Set[str]] = {}
 
     # ============== Prompt Operations ==============
 
@@ -108,8 +111,78 @@ class Storage:
         """
         if prompt_id in self._prompts:
             del self._prompts[prompt_id]
+            if prompt_id in self._prompt_tags:
+                del self._prompt_tags[prompt_id]
             return True
         return False
+
+    # ============== Tag Operations ==============
+
+    def create_tag(self, tag: Tag) -> Tag:
+        """Store a new tag.
+
+        Args:
+            tag: The Tag instance to store.
+
+        Returns:
+            The same Tag instance.
+        """
+        self._tags[tag.id] = tag
+        self._tag_by_name[tag.name] = tag
+        return tag
+
+    def get_tag(self, tag_id: str) -> Optional[Tag]:
+        """Retrieve a tag by ID."""
+        return self._tags.get(tag_id)
+
+    def get_tag_by_name(self, name: str) -> Optional[Tag]:
+        """Retrieve a tag by normalised name."""
+        return self._tag_by_name.get(name)
+
+    def get_all_tags(self) -> List[Tag]:
+        """Return all tags."""
+        return list(self._tags.values())
+
+    def delete_tag(self, tag_id: str) -> bool:
+        """Remove a tag and all its prompt associations."""
+        if tag_id not in self._tags:
+            return False
+        tag = self._tags[tag_id]
+        del self._tags[tag_id]
+        if tag.name in self._tag_by_name:
+            del self._tag_by_name[tag.name]
+        for prompt_id in list(self._prompt_tags.keys()):
+            self._prompt_tags[prompt_id].discard(tag_id)
+        return True
+
+    def attach_tags(self, prompt_id: str, tag_ids: Set[str]) -> None:
+        """Associate tags with a prompt (additive)."""
+        if prompt_id not in self._prompt_tags:
+            self._prompt_tags[prompt_id] = set()
+        self._prompt_tags[prompt_id].update(tag_ids)
+
+    def detach_tags(self, prompt_id: str, tag_ids: Set[str]) -> None:
+        """Remove tag associations from a prompt."""
+        if prompt_id in self._prompt_tags:
+            self._prompt_tags[prompt_id] -= tag_ids
+
+    def set_tags(self, prompt_id: str, tag_ids: Set[str]) -> None:
+        """Replace all tags on a prompt."""
+        self._prompt_tags[prompt_id] = set(tag_ids)
+
+    def get_tags_for_prompt(self, prompt_id: str) -> List[Tag]:
+        """Return tags attached to a prompt, sorted by name."""
+        tag_ids = self._prompt_tags.get(prompt_id, set())
+        tags = [self._tags[tid] for tid in tag_ids if tid in self._tags]
+        return sorted(tags, key=lambda t: t.name)
+
+    def get_prompt_count_for_tag(self, tag_id: str) -> int:
+        """Count prompts carrying a tag."""
+        return sum(1 for tids in self._prompt_tags.values() if tag_id in tids)
+
+    def get_prompt_ids_by_tag(self, tag_id: str) -> Set[str]:
+        """Return prompt IDs carrying a tag."""
+        return {pid for pid, tids in self._prompt_tags.items() if tag_id in tids}
 
     # ============== Collection Operations ==============
 
@@ -193,13 +266,16 @@ class Storage:
     # ============== Utility ==============
 
     def clear(self) -> None:
-        """Remove all prompts and collections from the store.
+        """Remove all prompts, collections, and tags from the store.
 
         This resets the storage to its initial empty state. Primarily
         used by test fixtures to ensure a clean slate between tests.
         """
         self._prompts.clear()
         self._collections.clear()
+        self._tags.clear()
+        self._tag_by_name.clear()
+        self._prompt_tags.clear()
 
 
 # Global storage instance

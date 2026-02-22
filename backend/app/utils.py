@@ -58,6 +58,38 @@ def filter_prompts_by_collection(
     return [p for p in prompts if p.collection_id == collection_id]
 
 
+def filter_prompts_by_tags(
+    prompts: List[Prompt],
+    tag_names: List[str],
+    match: str = "all",
+) -> List[Prompt]:
+    """Filter prompts by tag names.
+
+    Args:
+        prompts: The list of prompts to filter.
+        tag_names: Tag names to match against (already normalised to
+            lowercase).
+        match: "all" requires every tag to be present; "any" requires
+            at least one.
+
+    Returns:
+        Filtered list of prompts.
+    """
+    if not tag_names:
+        return prompts
+    tag_set = {n.lower() for n in tag_names}
+    result = []
+    for p in prompts:
+        prompt_tag_names = {t.name.lower() for t in getattr(p, "tags", [])}
+        if match == "any":
+            if tag_set & prompt_tag_names:
+                result.append(p)
+        else:
+            if tag_set <= prompt_tag_names:
+                result.append(p)
+    return result
+
+
 def search_prompts(prompts: List[Prompt], query: str) -> List[Prompt]:
     """Search prompts by title and description (case-insensitive).
 

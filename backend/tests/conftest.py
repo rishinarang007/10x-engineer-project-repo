@@ -6,10 +6,17 @@ from app.api import app
 from app.storage import storage
 
 
+class TestClientWithDeleteBody(TestClient):
+    """TestClient that supports DELETE with json body (for tag detach)."""
+
+    def delete(self, url, **kwargs):
+        return self.request("DELETE", url, **kwargs)
+
+
 @pytest.fixture
 def client():
     """Create a test client for the API."""
-    return TestClient(app)
+    return TestClientWithDeleteBody(app)
 
 
 @pytest.fixture(autouse=True)
