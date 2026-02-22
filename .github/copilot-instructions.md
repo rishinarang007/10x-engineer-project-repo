@@ -280,3 +280,32 @@ For **every** endpoint, include tests for:
 - Every public function in `utils.py` should have dedicated unit tests.
 - Every API endpoint should have at least one happy-path and one error-path
   test.
+
+### Testing Individual Functions (Reusable Rule)
+
+Use the following patterns to run tests for a specific endpoint or function:
+
+**By function name (endpoint):**
+
+```bash
+cd backend
+pytest tests/ -v -k "<function_name>" --cov=app.api --cov-report=term-missing
+```
+
+Example: `pytest tests/ -v -k "list_prompts" --cov=app.api --cov-report=term-missing`
+
+**Convention:** Test methods are named `test_<function>_<scenario>` (e.g.
+`test_list_prompts_empty`, `test_list_prompts_filter_by_collection_id_matching`).
+The `-k "list_prompts"` filter matches any test whose name contains
+`list_prompts`.
+
+**Using Make (from `backend/`):**
+
+```bash
+make test-list-prompts    # Tests for list_prompts + coverage
+make test-get-prompt
+make test-api             # All API tests + app.api coverage
+make test-func FUNC=my_fn # Generic: any endpoint name
+```
+
+**Full reference:** See `docs/TESTING_RULES.md` for all commands and patterns.

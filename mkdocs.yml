@@ -39,6 +39,7 @@ nav:
       - Tagging System: specs/tagging-system.md
   - Contributing:
       - Coding Standards: contributing/coding-standards.md
+      - Docker: DOCKER.md
 
 markdown_extensions:
   - pymdownx.superfences:
